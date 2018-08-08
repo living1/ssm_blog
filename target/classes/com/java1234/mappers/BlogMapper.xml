@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java1234.dao.BlogDao">
+	
+	<resultMap type="Blog" id="BlogResult"><!-- 这里只会出现数据库中原有的字段或者主外键关联的字段，对象中如果定义了其他的字段，可以通过sql语句把这些字段的值给拼凑出来 -->
+		<result property="id" column="id"/>
+		<result property="title" column="title"/>
+		<result property="summary" column="summary"/>
+		<result property="releaseDate" column="releaseDate"/>
+		<result property="clickHit" column="clickHit"/>
+		<result property="replyHit" column="replyHit"/>
+		<result property="content" column="content"/>
+		<result property="keyWord" column="keyWord"/>
+		
+		<!-- 设置主外键关联 -->
+		<association property="blogType" column="typeId" select="com.java1234.dao.BlogTypeDao.findById"></association>
+		
+	</resultMap>
+	
+	<!-- DATE_FORMAT(releaseDate,'%Y年%m月'),mysql提供的格式化方法， '%Y年%m月'这个是格式化字符串 -->
+	<select id="countList" resultMap="BlogResult">
+		SELECT DATE_FORMAT(releaseDate,'%Y年%m月') AS releaseDateStr,COUNT(*) AS blogCount FROM t_blog GROUP BY DATE_FORMAT(releaseDate,'%Y年%m月')
+		ORDER BY DATE_FORMAT(releaseDate,'%Y年%m月') DESC
+	</select><!-- 这里的releaseDateStr和blogCount都是Blog对象中的字段，只要查出的字段能够对的上，其他的字段缺失都可以补成null，这样就能封装成一个完整的Blog对象了 -->
+	
+	<select id="list" parameterType="Map" resultMap="BlogResult">
+		select * from t_blog
+		<where>
+			<if test="title!=null and title!=''">
+				and title like #{title}
+			</if>
+			<if test="typeId!=null and typeId!=''">
+				and typeId=#{typeId}
+			</if>
+			<if test="releaseDateStr!=null and releaseDateStr!=''">
+				and DATE_FORMAT(releaseDate,'%Y年%m月')=#{releaseDateStr}
+			</if>
+		</where>
+		order by releaseDate desc
+		<if test="start!=null and size!=null">
+			limit #{start},#{size}
+		</if>
+	</select>
+	
+	<select id="getTotal" parameterType="Map" resultType="Long"><!-- 注意这里是resultType，是一个Long -->
+		select count(*) from t_blog
+		<where>
+			<if test="title!=null and title!=''">
+				and title like #{title}
+			</if>
+			<if test="typeId!=null and typeId!=''">
+				and typeId=#{typeId}
+			</if>
+			<if test="releaseDateStr!=null and releaseDateStr!=''">
+				and DATE_FORMAT(releaseDate,'%Y年%m月')=#{releaseDateStr}
+			</if>
+		</where>
+	</select>
+	
+	<select id="findById" parameterType="Integer" resultMap="BlogResult">
+		select * from t_blog where id=#{id}
+	</select>
+	
+	<update id="update" parameterType="Blog">
+		update t_blog
+		<set>
+			<if test="title!=null and title!=''"><!-- 因为title是字符串类型 -->
+				title=#{title},
+			</if>
+			<if test="summary!=null and summary!=''"><!-- 因为title是字符串类型 -->
+				summary=#{summary},
+			</if>
+			<if test="content!=null and content!=''"><!-- 因为title是字符串类型 -->
+				content=#{content},
+			</if>
+			<if test="keyWord!=null and keyWord!=''"><!-- 因为title是字符串类型 -->
+				keyWord=#{keyWord},
+			</if>
+			<!-- 上面这个支持级联操作，这个是根据parameterType来的，这里代表的就是blog中的blogType属性,但是下面的typeId一定要对应数据库中字段 -->
+			<if test="blogType.id!=null and blogType.id!=''">
+				typeId=#{blogType.id},
+			</if>
+			<if test="clickHit!=null"><!-- 在后面加上一个逗号，多余的逗号mybatis会自动清理 -->
+				clickHit=#{clickHit},
+			</if>
+			<if test="replyHit!=null"><!-- 在后面加上一个逗号，多余的逗号mybatis会自动清理 -->
+				replyHit=#{replyHit},
+			</if>
+		</set>
+		where id=#{id}
+	</update>
+	
+	<!-- 算法：先把id小于#{id}的博客降序排列，然后限制数量为1，找到的就是上一篇博客 -->
+	<select id="getLastBlog" parameterType="Integer" resultMap="BlogResult"><!-- 小于符号不能在xml中直接用，要用实体字符 -->
+		select * from t_blog where id&lt;#{id} order by id desc limit 1
+	</select>
+	
+	<select id="getNextBlog" parameterType="Integer" resultMap="BlogResult">
+		SELECT * from t_blog WHERE id&gt;#{id} ORDER BY id ASC LIMIT 1
+	</select>
+	
+	<!-- useGeneratedKeys="true" keyProperty="id"用来将新保存的博客的id取出来，并且设置给blog对象,因为后面blogIndex中需要从blog中获得id -->
+	<insert id="add" useGeneratedKeys="true" keyProperty="id" parameterType="Blog"><!-- typeId采用了对象的级联 -->
+		insert into t_blog values(null,#{title},#{summary},now(),0,0,#{content},#{blogType.id},#{keyWord})
+	</insert>
+	
+	<delete id="delete" parameterType="Integer">
+		delete from t_blog where id=#{id}
+	</delete>
+	
+	<!-- 这个是对t_blog进行操作的，所以写到blogDao....中去 -->
+	<!-- resultType这个可要可不要 -->
+	<select id="getBlogByTypeId" parameterType="Integer" resultType="Integer">
+		select count(*) from t_blog where typeId=#{typeId}
+	</select>
+</mapper>

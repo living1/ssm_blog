@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java1234.dao.CommentDao">
+	
+	<resultMap type="Comment" id="CommentResult"><!-- 这里只会出现数据库中原有的字段或者主外键关联的字段，对象中如果定义了其他的字段，可以通过sql语句把这些字段的值给拼凑出来 -->
+		<result property="id" column="id"/>
+		<result property="userIp" column="userIp"/>
+		<result property="content" column="content"/>
+		<result property="commentDate" column="commentDate"/>
+		<result property="state" column="state"/>
+		
+		<!-- 设置主外键关联 -->
+		<association property="blog" column="blogId" select="com.java1234.dao.BlogDao.findById"></association>
+		
+	</resultMap>
+	
+	<select id="list" parameterType="Map" resultMap="CommentResult">
+		select * from t_comment
+		<where>
+			<if test="blogId!=null"><!-- blogId是一个类类型,不需要考虑是否为空串''的情况 -->
+				and blogId=#{blogId}
+			</if>
+			<if test="state!=null">
+				and state=#{state}
+			</if>
+		</where>
+		order by commentDate desc
+		<if test="start!=null and size!=null">
+			limit #{start},#{size}
+		</if>
+	</select>
+	
+	<select id="getTotal" parameterType="Map" resultType="Long"><!-- 注意这里是resultType，是一个Long -->
+		select count(*) from t_comment
+		<where>
+			<if test="state!=null">
+				and state=#{state}
+			</if>
+		</where>
+	</select>
+	
+	<insert id="add" parameterType="Comment"><!-- blog.id级联方式 -->
+		insert into t_comment values(null,#{userIp},#{blog.id},#{content},now(),0)
+	</insert>
+	
+	<update id="update" parameterType="Comment">
+		update t_comment
+		<set>
+			<if test="state!=null">
+				state=#{state},
+			</if>
+		</set>
+		where id=#{id}
+	</update>
+	
+	<delete id="delete" parameterType="Integer">
+		delete from t_comment where id=#{id}
+	</delete>
+</mapper>
